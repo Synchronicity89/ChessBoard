@@ -9,12 +9,9 @@ namespace ChessEngine
 {
     public class Knight : Piece
     {
-        //public Knight() { }
+        public override int[,,] Points { get; } = Constants.KnightMoves;
         public Knight(Board board, int pieceColor, int x, int y) : base(board, pieceColor, x, y)
         {
-            xLen = Constants.KnightMoves.GetLength(0);
-            yLen = Constants.KnightMoves.GetLength(1);
-            zLen = Constants.KnightMoves.GetLength(2);
         }
     }
 }

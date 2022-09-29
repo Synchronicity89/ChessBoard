@@ -10,12 +10,9 @@ namespace ChessEngine
 {
     public class Rook : Piece
     {
-        //public Rook() { }
+        public override int[,,] Points { get; } = Constants.RookMoves;
         public Rook(Board board, int pieceColor, int x, int y) : base(board, pieceColor, x, y)
         {
-            xLen = Constants.RookMoves.GetLength(0);
-            yLen = Constants.RookMoves.GetLength(1);
-            zLen = Constants.RookMoves.GetLength(2);
         }
     }
 }

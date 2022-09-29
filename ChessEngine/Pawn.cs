@@ -8,7 +8,8 @@ namespace ChessEngine
 {
     public class Pawn : Piece
     {
-        public int LastMoveDistance { get; set; }
+        public override int[,,] Points { get; } = Constants.PawnMoves;
+
         public Pawn(Board board, int pieceColor, int x, int y) : base(board, pieceColor, x, y)
         {
             xLen = Constants.PawnMoves.GetLength(0);
@@ -16,7 +17,7 @@ namespace ChessEngine
             zLen = Constants.PawnMoves.GetLength(2);
         }
 
-        public override Move[,,] Moves(int[,,] points)
+        public override Move[,,] Moves()
         {
             Move[,,] moves = new Move[xLen, yLen, zLen];
 
@@ -24,8 +25,8 @@ namespace ChessEngine
             {
                 for (int y = 0; y < yLen; y++)
                 {
-                    int relX = points[x, y, 0];
-                    int relY = points[x, y, 1];
+                    int relX = Points[x, y, 0];
+                    int relY = Points[x, y, 1];
                     int absX = this.X + PieceColor * relX;
                     int absY = this.Y + PieceColor * relY;
                     if (absX < 0 || absY < 0 || absX > 7 || absY > 7) continue;
@@ -58,7 +59,7 @@ namespace ChessEngine
             //is it an opponent piece
             var IsItAnOpponentPiece = Board.Grid[X + lr, Y].PieceColor != this.PieceColor;
             //did it just move
-            var DidItJustMove = Board.Grid[X + lr, Y].LastMove == Board.NumberOfMoves - 1;
+            var DidItJustMove = Board.Grid[X + lr, Y].LastMoveNumber == Board.NumberOfMoves - 1;
             //was the move distance 2
             var WasMoveDistance2 = Math.Abs((Board.Grid[X + lr, Y] as Pawn).LastMoveDistance) == 2;
             Exit:
@@ -70,7 +71,7 @@ namespace ChessEngine
                 //is it an opponent piece
                 Board.Grid[X + lr, Y].PieceColor != this.PieceColor &&
                 //did it just move
-                Board.Grid[X + lr, Y].LastMove == Board.NumberOfMoves - 1 &&
+                Board.Grid[X + lr, Y].LastMoveNumber == Board.NumberOfMoves - 1 &&
                 //was the move distance 2
                 Math.Abs((Board.Grid[X + lr, Y] as Pawn).LastMoveDistance) == 2);
         }
@@ -81,7 +82,5 @@ namespace ChessEngine
                 (m.X + PieceColor * 1 <= 8 && m.X + PieceColor * 1 >= 0);
         }
 
-        //TODO: Add en passant
-        public override Move[,,] TakeMoves(int[,,] points) => new Move[3, 2, 1];
     }
 }

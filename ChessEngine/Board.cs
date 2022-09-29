@@ -110,6 +110,26 @@ namespace ChessEngine
             return points;
         }
 
+        public List<Move> Flatten(Move[,,] pieceMoves)
+        {
+            var xLen = pieceMoves.GetLength(0);
+            var yLen = pieceMoves.GetLength(1);
+            var zLen = pieceMoves.GetLength(2);
+            var movesFlat = new List<Move>();
+            for (int x = 0; x < xLen; x++)
+            {
+                for (int y = 0; y < yLen; y++)
+                {
+                    if (pieceMoves[x, y, 0] != null)
+                    {
+                        movesFlat.Add(pieceMoves[x, y, 0]);
+                    }
+                }
+            }
+
+            return movesFlat;
+        }
+
         public void MovePiece(Move move)
         {
             Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] = move.Piece;
@@ -117,11 +137,8 @@ namespace ChessEngine
             move.Piece.X = move.X + move.Piece.X;
             move.Piece.Y = move.Y + move.Piece.Y;
             ColorToMove *= -1;
-            move.Piece.LastMove = NumberOfMoves;
-            if(move.Piece is Pawn)
-            {
-                (move.Piece as Pawn).LastMoveDistance = move.Y;
-            }
+            move.Piece.LastMoveNumber = NumberOfMoves;
+            move.Piece.LastMoveDistance = Math.Max(Math.Abs(move.Y), Math.Abs(move.X));
             NumberOfMoves++; 
         }
     }

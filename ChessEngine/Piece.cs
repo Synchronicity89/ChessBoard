@@ -13,35 +13,39 @@ namespace ChessEngine
         public int Y { get; set; }
         public int PieceColor { get; set; }
         public Board Board {get; set;}
-        public int LastMove { get; internal set; }
+        public int LastMoveNumber { get; internal set; }
+        public int LastMoveDistance { get; internal set; }
+
+        public virtual int[,,] Points { get; }
 
         public Piece(Board board, int pieceColor, int x, int y)
         {
+            xLen = Points.GetLength(0);
+            yLen = Points.GetLength(1);
+            zLen = Points.GetLength(2);
+
             Board = board;
             PieceColor = pieceColor;
             X = x;
             Y = y;
         }
 
-        public virtual Move[,,] Moves(int[,,] points)
+        public virtual Move[,,] Moves()
         {
-            int index = 0;
             Move[,,] moves = new Move[xLen, yLen, zLen];
-            index = GenerateMoves(index, moves, points, this);
+            GenerateMoves(moves, Points, this);
             return moves;
         }
-
-        public virtual Move[,,] TakeMoves(int[,,] points)
+        protected Move[,,] TakeMoves()
         {
-            //return this.Moves()[0,0,].Where(m => m.Take == true);
             Move[,,] takeMoves = new Move[xLen, yLen, zLen];
 
-            var moves = this.Moves(points);
+            var moves = this.Moves();
             for (int x = 0; x < xLen; x++)
             {
-                for (int y = 0; x < yLen; x++)
+                for (int y = 0; y < yLen; y++)
                 {
-                    if (moves[x, y, 0] != null && moves[x, 0, 0].Take == true)
+                    if (moves[x, y, 0] != null && moves[x, y, 0].Take == true)
                     {
                         takeMoves[x, y, 0] = moves[x, y, 0];
                     }
@@ -50,10 +54,11 @@ namespace ChessEngine
             return takeMoves;
         }
 
-        public int GenerateMoves(int index, Move[,,] moves, int[,,] points, Piece piece)
+        public void GenerateMoves(Move[,,] moves, int[,,] points, Piece piece)
         {
             for (int x = 0; x < xLen; x++)
             {
+                var doBreak = false;
                 for (int y = 0; y < yLen; y++)
                 {
                     int relX = points[x, y, 0];
@@ -63,26 +68,72 @@ namespace ChessEngine
                     if (absX < 0 || absY < 0 || absX > 7 || absY > 7) continue;
 
                     if (Board.Grid[absX, absY] == null)
-                    {
+                    { 
+                        //castle logic
+                        if((this is King) && Math.Abs(relX) == 2)
+                        { 
+                            if ((this is King) && (this as King).LastMoveDistance == 0)
+                            {
+                                //More testing:
+                                Piece rookCandidate = Board.Grid[relX < 0 ? 0 : 7, Y];
+                                if (rookCandidate is Rook == false || rookCandidate.PieceColor != this.PieceColor) break;
+                                //Has rook been moved
+                                if (rookCandidate == null ||  rookCandidate.LastMoveDistance != 0) break;
+                                //Any pieces between king and rook
+                                for(int i = X + (relX / 2); i != rookCandidate.X; i+=(relX/2))
+                                {
+                                    if (Board.Grid[i, Y] != null) break;
+                                }
+                                //Any pieces attacking squares the king would have to move over, plus is the king already in check
+                                //Make a fake Queen and then a Knight on each of the three squares, make a list of pieces they could "take"
+                                //See if any of these fake victims is threatening the King or any of its traversed squares
+                                for (int i = X; Math.Abs(X - i) < 3; i += (relX / 2))
+                                {
+                                    Queen fakeQueen = new Queen(Board, rookCandidate.PieceColor, i, Y);
+                                    Knight fakeKnight = new Knight(Board, rookCandidate.PieceColor, i, Y);
+                                    doBreak = IsCastleThreatened(doBreak, fakeQueen) || IsCastleThreatened(doBreak, fakeKnight);
+                                    if (doBreak) break;
+                                }
+                                if (doBreak) break;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        //move available
                         moves[x, y, 0] = new Move(relX, relY, this);
-                        if ((this is King) && (this as King).HasMoved && Math.Abs(y) == 2) continue;
                         continue;
                     }
                     if (Board.Grid[absX, absY].PieceColor != this.PieceColor) 
                     {
-                        //if (this is Pawn)
-                        //{
-                        //    var pawn = (this as Pawn);
-                        //    //check for opponent pawn to left and right
-                        //    if(
-                        //}
+                        if ((this is King) && Math.Abs(relX) == 2) break;
                         moves[x, y, 0] = new Move(relX, relY, this, true);
                         break;
                     }
                     break;
                 }
             }
-            return index;
+        }
+
+        private bool IsCastleThreatened(bool doBreak, Piece fakePiece)
+        {
+            var takes = Board.Flatten(fakePiece.TakeMoves());
+            if (takes.Count() > 0)
+            {
+                foreach (var take in takes)
+                {
+                    var fakeTake = Board.Grid[fakePiece.X + take.X, fakePiece.Y + take.Y];
+                    if (Board.Flatten(fakeTake.Moves()).Where(tm => tm.X + fakeTake.X == fakePiece.X &&
+                        tm.Y + fakeTake.Y == fakePiece.Y).Any())
+                    {
+                        doBreak = true;
+                        break;
+                    }
+                }
+            }
+
+            return doBreak;
         }
 
         public int GeneratePoints2(int index, int yInc, int xInc, Point[] points, int maxCount = 1)
