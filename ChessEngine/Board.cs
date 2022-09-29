@@ -55,66 +55,13 @@ namespace ChessEngine
         public int[,,] GetMoves(int col, int row)
         {
             if (Grid[col, row] == null || ColorToMove != Grid[col, row].PieceColor) return null;
-            int[,,] points = { { { } } };
-
-            switch (Grid[col, row].GetType().Name)
-            {
-                case "Knight":
-                    points = Constants.KnightMoves;
-                    break;
-                case "Bishop":
-                    points = Constants.BishopMoves;
-                    break;
-                case "Pawn":
-                    points = Constants.PawnMoves;
-                    break;
-                case "Rook":
-                    points = Constants.RookMoves;
-                    break;
-                case "King":
-                    points = Constants.KingMoves;
-                    break;
-                case "Queen":
-                    points = new int[Constants.RookMoves.GetLength(0) + Constants.BishopMoves.GetLength(0), Constants.RookMoves.GetLength(1), Constants.RookMoves.GetLength(2)];
-                    var xLen1 = Constants.RookMoves.GetLength(0);
-                    var yLen1 = Constants.RookMoves.GetLength(1);
-                    var zLen1 = Constants.RookMoves.GetLength(2);
-                    for (int x = 0; x < xLen1; x++)
-                    {
-                        for (int y = 0; y < yLen1; y++)
-                        {
-                            for (int z = 0; z < zLen1; z++)
-                            {
-                                points[x, y, z] = Constants.RookMoves[x, y, z];
-                            }
-                        }
-                    }
-                    xLen1 = Constants.BishopMoves.GetLength(0);
-                    yLen1 = Constants.BishopMoves.GetLength(1);
-                    zLen1 = Constants.BishopMoves.GetLength(2);
-                    for (int x = 0; x < xLen1; x++)
-                    {
-                        for (int y = 0; y < yLen1; y++)
-                        {
-                            for (int z = 0; z < zLen1; z++)
-                            {
-                                points[x + 4, y, z] = Constants.BishopMoves[x, y, z];
-                            }
-                        }
-                    }
-                    break;
-                default:
-                    throw new InvalidOperationException("case statement failed");
-            }
-
-            return points;
+            return Grid[col, row].Points;
         }
 
         public List<Move> Flatten(Move[,,] pieceMoves)
         {
             var xLen = pieceMoves.GetLength(0);
             var yLen = pieceMoves.GetLength(1);
-            var zLen = pieceMoves.GetLength(2);
             var movesFlat = new List<Move>();
             for (int x = 0; x < xLen; x++)
             {
@@ -132,10 +79,32 @@ namespace ChessEngine
 
         public void MovePiece(Move move)
         {
+            if (move.Piece is Pawn && Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] == null)
+            {//En Passant
+                Grid[move.Piece.X + move.X, move.Piece.Y] = null;
+            }
             Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] = move.Piece;
             Grid[move.Piece.X, move.Piece.Y] = null;
             move.Piece.X = move.X + move.Piece.X;
             move.Piece.Y = move.Y + move.Piece.Y;
+            if (move.Piece is King && Math.Abs(move.X) == 2)
+            {
+                //Castling. Move rook too
+                if(move.X == -2)
+                {//Queen side castle
+                    Grid[3, move.Piece.Y] = Grid[0, move.Piece.Y];
+                    Grid[0, move.Piece.Y] = null;
+                    Grid[3, move.Piece.Y].X = 3;
+                    //Y should be correct already
+                }
+                else
+                {
+                    Grid[5, move.Piece.Y] = Grid[7, move.Piece.Y];
+                    Grid[7, move.Piece.Y] = null;
+                    Grid[5, move.Piece.Y].X = 5;
+                }
+            }
+
             ColorToMove *= -1;
             move.Piece.LastMoveNumber = NumberOfMoves;
             move.Piece.LastMoveDistance = Math.Max(Math.Abs(move.Y), Math.Abs(move.X));
