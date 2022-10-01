@@ -1,15 +1,26 @@
-﻿using System.Security.Cryptography.X509Certificates;
-
+﻿using System.Drawing;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 namespace ChessEngine
 {
     public class Board
     {
-
-        public Board()
+        /// <summary>
+        /// Currently the board only does standard chess.  No other variant
+        /// </summary>
+        public Board(bool fake)
         {
             Grid = new Piece[8, 8];
         }
-
+        public Board() : this(false)
+        {
+            Instance = this;
+        }
+        public bool fake;
+        public static Board Instance { get; private set; }
+        public King KingDark { get; set; }
+        public King KingLight { get; set; }
         public Piece[,] Grid { get; set; }
         public int ColorToMove { get; set; } = 1;
         public int NumberOfMoves { get; private set; }
@@ -39,16 +50,20 @@ namespace ChessEngine
                 if (i == 4)
                 {
                     AddPiece<King>(i, 0, 1);
+                    KingDark = (King)Grid[4, 7];
+                    KingLight = (King)Grid[4, 0];
                 }
             }
         }
 
         public void AddPiece<T>(int x, int y, int color, bool mirror = true) where T : Piece
         {
-            Grid[x, y] = (Piece)Activator.CreateInstance(typeof(T), this, color, x, y);
+            Grid[x, y] = (Piece)Activator.CreateInstance(typeof(T));
+            Grid[x, y].PieceColor = color; Grid[x, y].X = x; Grid[x, y].Y = y;
             if (mirror)
             {
-                Grid[x, 7 - y] = (Piece)Activator.CreateInstance(typeof(T), this, -1 * color, x, 7 - y);
+                Grid[x, 7 - y] = (Piece)Activator.CreateInstance(typeof(T));
+                Grid[x, 7 - y].PieceColor = -1 * color; Grid[x, 7 - y].X = x; Grid[x, 7 - y].Y = 7 - y;
             }
         }
 
@@ -77,8 +92,10 @@ namespace ChessEngine
             return movesFlat;
         }
 
-        public void MovePiece(Move move)
+        public void MovePiece(Move move, Action<King, KingStatus> kingThreat)
         {
+            bool darkKingThreat;
+            bool lightKingThreat;
             if (move.Piece is Pawn && Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] == null)
             {//En Passant
                 Grid[move.Piece.X + move.X, move.Piece.Y] = null;
@@ -87,28 +104,92 @@ namespace ChessEngine
             Grid[move.Piece.X, move.Piece.Y] = null;
             move.Piece.X = move.X + move.Piece.X;
             move.Piece.Y = move.Y + move.Piece.Y;
-            if (move.Piece is King && Math.Abs(move.X) == 2)
+            if (move.Piece is King)
             {
-                //Castling. Move rook too
-                if(move.X == -2)
-                {//Queen side castle
-                    Grid[3, move.Piece.Y] = Grid[0, move.Piece.Y];
-                    Grid[0, move.Piece.Y] = null;
-                    Grid[3, move.Piece.Y].X = 3;
-                    //Y should be correct already
-                }
-                else
-                {
-                    Grid[5, move.Piece.Y] = Grid[7, move.Piece.Y];
-                    Grid[7, move.Piece.Y] = null;
-                    Grid[5, move.Piece.Y].X = 5;
+
+                darkKingThreat = Threat(KingDark.PieceColor, KingDark.X, KingDark.Y);
+                lightKingThreat = Threat(KingLight.PieceColor, KingLight.X, KingLight.Y);
+                if(move.Piece.PieceColor == -1 && darkKingThreat) 
+                    kingThreat(KingDark, KingStatus.UndoMove | KingStatus.Checked);
+                if (move.Piece.PieceColor == -1 && lightKingThreat) 
+                    kingThreat(KingLight, KingStatus.UndoMove | KingStatus.Checked);
+
+                if (Math.Abs(move.X) == 2)
+                { 
+                    //Castling. Move rook too
+                    if(move.X == -2)
+                    {//Queen side castle
+                        Grid[3, move.Piece.Y] = Grid[0, move.Piece.Y];
+                        Grid[0, move.Piece.Y] = null;
+                        Grid[3, move.Piece.Y].X = 3;
+                        //Y should be correct already
+                    }
+                    else
+                    {
+                        Grid[5, move.Piece.Y] = Grid[7, move.Piece.Y];
+                        Grid[7, move.Piece.Y] = null;
+                        Grid[5, move.Piece.Y].X = 5;
+                    }
                 }
             }
 
             ColorToMove *= -1;
             move.Piece.LastMoveNumber = NumberOfMoves;
             move.Piece.LastMoveDistance = Math.Max(Math.Abs(move.Y), Math.Abs(move.X));
-            NumberOfMoves++; 
+            NumberOfMoves++;
+
+            //check for king threat
+            darkKingThreat = Threat(KingDark.PieceColor, KingDark.X, KingDark.Y);
+            lightKingThreat = Threat(KingLight.PieceColor, KingLight.X, KingLight.Y);
+
+            kingThreat(KingDark, darkKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
+            kingThreat(KingLight, lightKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
+            //TODO: look for stalemate or checkmate
         }
+
+        public bool Threat(int pieceColor, int a, int b)
+        {
+            Queen fakeQueen = new Queen { PieceColor = pieceColor, X = a, Y = b };
+            Knight fakeKnight = new Knight { PieceColor = pieceColor, X = a, Y = b };
+            return IsCastleThreatened(fakeQueen) || IsCastleThreatened(fakeKnight);
+        }
+
+        private bool IsCastleThreatened(Piece fakePiece)
+        {
+            bool doBreak = false;
+            var takes = Flatten(fakePiece.TakeMoves());
+            if (takes.Count() > 0)
+            {
+                foreach (var take in takes)
+                {
+                    var fakeTake = Grid[fakePiece.X + take.X, fakePiece.Y + take.Y];
+                    if (Flatten(fakeTake.Moves()).Where(tm => tm.X + fakeTake.X == fakePiece.X &&
+                        tm.Y + fakeTake.Y == fakePiece.Y).Any())
+                    {
+                        doBreak = true;
+                        break;
+                    }
+                }
+            }
+
+            return doBreak;
+        }
+
+        internal void AddIfLegal(Move[,,] moves, int x, int y, Move move)
+        {
+            //TODO: Check if move is legal before adding it to list of allowable moves
+            //for now:
+            moves[x, y, 0] = move;
+        }
+    }
+
+    [Flags]
+    public enum KingStatus
+    {
+        Unchecked = 0,
+        Checked = 1,
+        Checkmate = 2,
+        Stalemate = 4,
+        UndoMove = 8
     }
 }

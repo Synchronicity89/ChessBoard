@@ -2,21 +2,22 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace ChessEngine
 {
     public class Pawn : Piece
     {
+        [JsonIgnore]
         public override int[,,] Points { get; } = Constants.PawnMoves;
 
-        public Pawn(Board board, int pieceColor, int x, int y) : base(board, pieceColor, x, y)
+        public Pawn() 
         {
             xLen = Constants.PawnMoves.GetLength(0);
             yLen = Constants.PawnMoves.GetLength(1);
             zLen = Constants.PawnMoves.GetLength(2);
         }
-
         public override Move[,,] Moves()
         {
             Move[,,] moves = new Move[xLen, yLen, zLen];
@@ -34,7 +35,7 @@ namespace ChessEngine
                     if (Board.Grid[absX, absY] == null && (Math.Abs(relX) == 1 && Math.Abs(relY) == 1) == false)
                     {
                         if (Math.Abs(relY) == 2 && !((this.PieceColor == -1 && this.Y == 6) || (this.PieceColor == 1 && this.Y == 1))) continue;
-                        moves[x, y, 0] = new Move(PieceColor * relX, PieceColor * relY, this);
+                        Board.AddIfLegal(moves, x, y, new Move(PieceColor * relX, PieceColor * relY, this));
                         continue;
                     }
                     if (Board.Grid[absX, absY] != null && Board.Grid[absX, absY].PieceColor != this.PieceColor && Math.Abs(relX) == 1 && Math.Abs(relY) == 1 ||
@@ -42,7 +43,7 @@ namespace ChessEngine
                         //checking to the right
                         (absX > X && EnPassant(absX, 1)) || (absX < X && EnPassant(absX, -1)))
                     {
-                        moves[x, y, 0] = new Move(PieceColor * relX, PieceColor * relY, this, true);
+                        Board.AddIfLegal(moves, x, y, new Move(PieceColor * relX, PieceColor * relY, this, true));
                         break;
                     }
                     break;

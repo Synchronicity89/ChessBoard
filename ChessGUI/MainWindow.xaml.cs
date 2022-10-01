@@ -75,7 +75,7 @@ namespace ChessGUI
                     grdBoard.Children.Add(img07);
                 }
             }
-            RemoveUIElements<Rectangle>();
+            //RemoveUIElements<Rectangle>();
         }
 
         private void ShowMoves(int col, int row, bool samePosition)
@@ -98,16 +98,25 @@ namespace ChessGUI
 
             foreach (var move in movesFlat)
             {
-                var rect = new Rectangle(); rect.Fill = move.Take ? Brushes.Gold : Brushes.Silver;
-                rect.Opacity = 0.6;
-                Grid.SetColumn(rect, move.X + move.Piece.X);
-                Grid.SetRow(rect, 7 - (move.Y + move.Piece.Y));
+                Brush color = move.Take ? Brushes.Gold : Brushes.Silver;
+                int column = move.X + move.Piece.X;
+                int row1 = move.Y + move.Piece.Y;
+                Rectangle rect = CreateRectangle(color, column, row1);
                 rect.Tag = move;
                 rect.MouseDown += Rect_MouseDown;
-                grdBoard.Children.Add(rect);
-
 
             }
+        }
+
+        private Rectangle CreateRectangle(Brush color, int column, int row1)
+        {
+            var rect = new Rectangle();
+            rect.Opacity = 0.6;
+            Grid.SetColumn(rect, column);
+            Grid.SetRow(rect, 7 - row1);
+            grdBoard.Children.Add(rect);
+            rect.Fill = color;
+            return rect;
         }
 
         private void RemoveUIElements<T>() where T : UIElement
@@ -129,20 +138,41 @@ namespace ChessGUI
         private int moving = 0;
         private void Rect_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            bool abortMove = false;
             moving = 2;
             Move tag = (Move)((Rectangle)sender).Tag;
-            board.MovePiece(tag);
             RemoveUIElements<Rectangle>();
+            board.MovePiece(tag, (king, kingStatus) => {
+                if((kingStatus & KingStatus.Checked) == KingStatus.Checked) CreateRectangle(Brushes.Red, king.X, king.Y);
+                if(king.PieceColor == tag.Piece.PieceColor && (kingStatus & KingStatus.UndoMove) == KingStatus.UndoMove)
+                {
+                    abortMove = true;
+                }
+            });
+            if (abortMove) this.AbortMove();
             DrawPieces();
             --moving;
         }
 
-        protected override void OnMouseUp(MouseButtonEventArgs e)
+        private void AbortMove()
         {
-
+            //TODO: implement AbortMove by reloading board to the previous position
+            //throw new NotImplementedException();
         }
 
-        //The rest of the code in this file was copied and pasted from stackoverflow, with few or no changes.
+        private void BringImagesToFront()
+        {
+            List<Image> images = new List<Image>();
+            foreach(var control in grdBoard.Children)
+            {
+                if(control is Image)
+                {
+                    BringToFront(grdBoard, (Image)control);
+                }
+            }
+        }
+
+        //The rest of the code in this file was mostly copied and pasted from stackoverflow, with few or no changes.
         //It has not been reviewed and may be lacking in quality
 
         protected override void OnMouseDown(MouseButtonEventArgs e)
@@ -163,18 +193,6 @@ namespace ChessGUI
             if(board != null)
             {
                 ShowMoves((int)gridPosition.X, (int)(7.0 - gridPosition.Y), false);
-            }
-        }
-
-        private void BringImagesToFront()
-        {
-            List<Image> images = new List<Image>();
-            foreach(var control in grdBoard.Children)
-            {
-                if(control is Image)
-                {
-                    BringToFront(grdBoard, (Image)control);
-                }
             }
         }
 
@@ -206,19 +224,9 @@ namespace ChessGUI
             {
             }
         }
-
-        private void grdBoard_DragEnter(object sender, DragEventArgs e)
-        {
-
-        }
-
-        private void grdBoard_DragLeave(object sender, DragEventArgs e)
-        {
-
-        }
     }
 
-    public static class GridExtentions
+    public static class GridExtensions
     {
         public static T Parent<T>(this DependencyObject root) where T : class
         {

@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:ChessGUI"
         mc:Ignorable="d"
         Title="MainWindow" Height="1200" Width="1200">
-    <Grid x:Name="grdBoard" Background="Transparent" Loaded="Grid_Loaded" DragEnter="grdBoard_DragEnter" DragLeave="grdBoard_DragLeave">
+    <Grid x:Name="grdBoard" Background="Transparent" Loaded="Grid_Loaded">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Name="A1"  />
             <ColumnDefinition />
