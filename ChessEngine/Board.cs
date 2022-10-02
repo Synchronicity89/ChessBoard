@@ -12,6 +12,7 @@ namespace ChessEngine
         public Board(bool fake)
         {
             Grid = new Piece[8, 8];
+
         }
         public Board() : this(false)
         {
@@ -24,6 +25,7 @@ namespace ChessEngine
         public Piece[,] Grid { get; set; }
         public int ColorToMove { get; set; } = 1;
         public int NumberOfMoves { get; private set; }
+        public int NumMovesSincePawnMoved { get; private set; }
 
         public void StandardSetup()
         {
@@ -137,7 +139,7 @@ namespace ChessEngine
             move.Piece.LastMoveNumber = NumberOfMoves;
             move.Piece.LastMoveDistance = Math.Max(Math.Abs(move.Y), Math.Abs(move.X));
             NumberOfMoves++;
-
+            NumMovesSincePawnMoved++;
             //check for king threat
             darkKingThreat = Threat(KingDark.PieceColor, KingDark.X, KingDark.Y);
             lightKingThreat = Threat(KingLight.PieceColor, KingLight.X, KingLight.Y);
@@ -145,6 +147,86 @@ namespace ChessEngine
             kingThreat(KingDark, darkKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
             kingThreat(KingLight, lightKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
             //TODO: look for stalemate or checkmate
+
+            if (move.Piece is Pawn)
+            {
+                this.NumMovesSincePawnMoved = 0;
+            }
+        }
+
+        public string CreateFEN()
+        {
+            //En Passant
+            int xEP = -1;
+            int yEP = -1;
+            var fen = "";
+            for (int y = 7; y >= 0; y--)
+            {
+                int empty = 1;
+                for (int x = 0; x < 8; x++)
+                {
+                    if (Grid[x, y] != null)
+                    {
+                        Type type = Grid[x, y].GetType();
+                        char f = type.Name != "Knight" ? type.Name[0] : 'N';
+                        f = Grid[x, y].PieceColor == -1 ? f.ToString().ToLower()[0] : f;
+                        fen += f;
+                        
+                        if(type.Name == "Pawn") 
+                            if(Math.Abs(Grid[x, y].LastMoveDistance) == 2) 
+                                if( Grid[x, y].LastMoveNumber == this.NumberOfMoves - 1)
+                        {
+                            xEP = x;
+                            yEP = y - Grid[x, y].PieceColor * Grid[x, y].LastMoveDistance/2;
+                        }
+                    }
+                    else
+                    {
+                        fen += empty;
+                    }
+                }
+                if(y > 0) fen += '/';
+            }
+
+            string fen1 = fen.Replace("11111111", "8").Replace("1111111", "7")
+                .Replace("111111", "6").Replace("11111", "5")
+                .Replace("1111", "4").Replace("111", "3")
+                .Replace("11", "2");
+
+            fen1 += " ";
+
+            fen1 += (this.ColorToMove == -1 ? 'b' : 'w') + " ";
+
+            string fen2 = (this.KingLight.CanCastleKingside ? "K" : "");
+            fen2 += (this.KingLight.CanCastleQueenside ? 'Q' : "");
+            fen2 += (this.KingDark.CanCastleKingside ? 'k' : "");
+            fen2 += (this.KingDark.CanCastleQueenside ? 'q' : "");
+            if(String.IsNullOrEmpty(fen2))
+            {
+                fen1 += '-';
+            }
+            else
+            {
+                fen1 += fen2;
+            }
+
+            fen1 += " ";
+
+            if(xEP > -1 && yEP > -1)
+            {
+                fen1 += "abcdefgh"[xEP] + (yEP + 1).ToString();
+            }
+            else
+            {
+                fen1 += '-';
+            }
+
+            fen1 += " " + this.NumMovesSincePawnMoved + " ";
+
+            fen1 += 1 + (int)((this.NumberOfMoves)/2);
+
+            return fen1;
+
         }
 
         public bool Threat(int pieceColor, int a, int b)

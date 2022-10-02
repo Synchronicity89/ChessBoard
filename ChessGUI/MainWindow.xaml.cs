@@ -152,6 +152,7 @@ namespace ChessGUI
             if (abortMove) this.AbortMove();
             DrawPieces();
             --moving;
+            Title = board.CreateFEN();
         }
 
         private void AbortMove()

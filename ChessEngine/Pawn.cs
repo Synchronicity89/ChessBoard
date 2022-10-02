@@ -54,16 +54,17 @@ namespace ChessEngine
 
         private bool EnPassant(int absX, int lr)
         {
-            var IsThereAPieceThere = Board.Grid[X + lr, Y] != null; if (IsThereAPieceThere != true) goto Exit;
-            //is it a pawn
-            var IsItAPawn = Board.Grid[X + lr, Y] is Pawn; if(IsItAPawn != true) goto Exit;
-            //is it an opponent piece
-            var IsItAnOpponentPiece = Board.Grid[X + lr, Y].PieceColor != this.PieceColor;
-            //did it just move
-            var DidItJustMove = Board.Grid[X + lr, Y].LastMoveNumber == Board.NumberOfMoves - 1;
-            //was the move distance 2
-            var WasMoveDistance2 = Math.Abs((Board.Grid[X + lr, Y] as Pawn).LastMoveDistance) == 2;
-            Exit:
+            //uncomment for debugging
+            //var IsThereAPieceThere = Board.Grid[X + lr, Y] != null; if (IsThereAPieceThere != true) goto Exit;
+            ////is it a pawn
+            //var IsItAPawn = Board.Grid[X + lr, Y] is Pawn; if(IsItAPawn != true) goto Exit;
+            ////is it an opponent piece
+            //var IsItAnOpponentPiece = Board.Grid[X + lr, Y].PieceColor != this.PieceColor;
+            ////did it just move
+            //var DidItJustMove = Board.Grid[X + lr, Y].LastMoveNumber == Board.NumberOfMoves - 1;
+            ////was the move distance 2
+            //var WasMoveDistance2 = Math.Abs((Board.Grid[X + lr, Y] as Pawn).LastMoveDistance) == 2;
+            //Exit:
             return (
                 //is there a piece there
                 Board.Grid[X + lr, Y] != null &&
