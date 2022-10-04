@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\pgn.net\pgn.NET\pgn.NET.csproj" />
   </ItemGroup>
 
 </Project>
