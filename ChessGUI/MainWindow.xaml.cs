@@ -1,7 +1,11 @@
 ﻿using ChessEngine;
+using ChessLibs;
+using ilf.pgn;
+using ilf.pgn.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +18,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using pgnMove = ilf.pgn.Data.Move;
+using ceMove = ChessEngine.Move;
 
 namespace ChessGUI
 {
@@ -55,7 +61,7 @@ namespace ChessGUI
                     BitmapImage bi = new BitmapImage();
                     // BitmapImage.UriSource must be in a BeginInit/EndInit block.
                     bi.BeginInit();
-                    if(board.Grid[x, y].PieceColor == -1)
+                    if (board.Grid[x, y].PieceColor == -1)
                     {
                         typeName += "Dark";
                     }
@@ -94,7 +100,7 @@ namespace ChessGUI
             var pieceMoves = board.Grid[col, row].Moves();
             if (pieceMoves == null) return;
 
-            List<Move> movesFlat = board.Flatten(pieceMoves);
+            List<ceMove> movesFlat = board.Flatten(pieceMoves);
 
             foreach (var move in movesFlat)
             {
@@ -136,29 +142,50 @@ namespace ChessGUI
             }
         }
         private int moving = 0;
+        private Pgn pgn = new Pgn();
+        private Database database;
         private void Rect_MouseDown(object sender, MouseButtonEventArgs e)
         {
             bool abortMove = false;
             moving = 2;
-            Move tag = (Move)((Rectangle)sender).Tag;
+            ceMove tag = (ceMove)((Rectangle)sender).Tag;
             RemoveUIElements<Rectangle>();
-            board.MovePiece(tag, (king, kingStatus) => {
-                if((kingStatus & KingStatus.Checked) == KingStatus.Checked) CreateRectangle(Brushes.Red, king.X, king.Y);
-                if(king.PieceColor == tag.Piece.PieceColor && (kingStatus & KingStatus.UndoMove) == KingStatus.UndoMove)
+            string moveText = board.MovePiece(tag, (king, kingStatus) => {
+                if ((kingStatus & KingStatus.Checked) == KingStatus.Checked) CreateRectangle(Brushes.Red, king.X, king.Y);
+                if (king.PieceColor == tag.Piece.PieceColor && (kingStatus & KingStatus.UndoMove) == KingStatus.UndoMove)
                 {
                     abortMove = true;
                 }
+            }, pawn =>
+            {
+                var promotePawn = new PromotePawn();
+                promotePawn.Owner = this;
+                promotePawn.ShowDialog();
+                return promotePawn.Promote;
             });
-            if (abortMove) this.AbortMove();
+            if (abortMove || string.IsNullOrEmpty(moveText))
+            {
+                this.AbortMove();
+                moving = 0;
+                return;
+            }
             DrawPieces();
             --moving;
-            Title = board.CreateFEN();
+            Title = "FEN: " + board.CreateFEN() + "            pgn: " + (tag.Piece.PieceColor == -1 ? "... " : "") + moveText;
+            pgn.RecordMove(moveText);
+            string debugArtifact = pgn.PgnText.Substring(pgn.PgnText.Length - 20);
+            PgnReader pgnReader = new PgnReader();
+            var db = pgnReader.ReadFromString(pgn.PgnText.Replace("'", "\""));
+            database = db;
+            MemoryStream memStream = new MemoryStream();
+            var debugArtifact2 = db.Games[0].ToString();
         }
 
-        private void AbortMove()
+    private void AbortMove()
         {
             //TODO: implement AbortMove by reloading board to the previous position
             //throw new NotImplementedException();
+            MessageBox.Show("Illegal move");            
         }
 
         private void BringImagesToFront()

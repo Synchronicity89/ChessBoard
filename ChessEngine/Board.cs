@@ -12,7 +12,6 @@ namespace ChessEngine
         public Board(bool fake)
         {
             Grid = new Piece[8, 8];
-
         }
         public Board() : this(false)
         {
@@ -61,11 +60,12 @@ namespace ChessEngine
         public void AddPiece<T>(int x, int y, int color, bool mirror = true) where T : Piece
         {
             Grid[x, y] = (Piece)Activator.CreateInstance(typeof(T));
-            Grid[x, y].PieceColor = color; Grid[x, y].X = x; Grid[x, y].Y = y;
+            Grid[x, y].PieceColor = color; Grid[x, y].X = x; Grid[x, y].Y = y; Grid[x, y].LastX = x; Grid[x, y].LastY = y;
             if (mirror)
             {
                 Grid[x, 7 - y] = (Piece)Activator.CreateInstance(typeof(T));
-                Grid[x, 7 - y].PieceColor = -1 * color; Grid[x, 7 - y].X = x; Grid[x, 7 - y].Y = 7 - y;
+                Grid[x, 7 - y].PieceColor = -1 * color; Grid[x, 7 - y].X = x; Grid[x, 7 - y].Y = 7 - y; 
+                Grid[x, 7 - y].LastX = x; Grid[x, 7 - y].LastY = 7 - y;
             }
         }
 
@@ -94,18 +94,33 @@ namespace ChessEngine
             return movesFlat;
         }
 
-        public void MovePiece(Move move, Action<King, KingStatus> kingThreat)
+        public string MovePiece(Move move, Action<King, KingStatus> kingThreat, Func<Pawn, char> promotion)
         {
+            List<Piece> piecesMoved = new List<Piece>();
+            List<Piece> piecesTaken= new List<Piece>();
+            string moveText = "";
+            Pawn promoted = null;
             bool darkKingThreat;
             bool lightKingThreat;
-            if (move.Piece is Pawn && Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] == null)
-            {//En Passant
-                Grid[move.Piece.X + move.X, move.Piece.Y] = null;
+            if (move.Piece is Pawn)
+            {
+                if (Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] == null)
+                { 
+                    //En Passant
+                    piecesTaken.Add(move.Piece); 
+                    Grid[move.Piece.X + move.X, move.Piece.Y] = null;
+                }
+                else if((move.Y + move.Piece.Y) % 7 == 0)
+                {
+                    //Promotion
+                    promoted = (Pawn)move.Piece;
+                }
             }
             Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] = move.Piece;
             Grid[move.Piece.X, move.Piece.Y] = null;
             move.Piece.X = move.X + move.Piece.X;
             move.Piece.Y = move.Y + move.Piece.Y;
+            piecesMoved.Add(move.Piece);
             if (move.Piece is King)
             {
 
@@ -125,33 +140,79 @@ namespace ChessEngine
                         Grid[0, move.Piece.Y] = null;
                         Grid[3, move.Piece.Y].X = 3;
                         //Y should be correct already
+                        moveText = "0-0-0";
+                        piecesMoved.Add((Rook)Grid[3, move.Piece.Y]);
                     }
                     else
                     {
                         Grid[5, move.Piece.Y] = Grid[7, move.Piece.Y];
                         Grid[7, move.Piece.Y] = null;
                         Grid[5, move.Piece.Y].X = 5;
+                        moveText = "0-0";
+                        piecesMoved.Add((Rook)Grid[5, move.Piece.Y]);
                     }
                 }
             }
 
-            ColorToMove *= -1;
-            move.Piece.LastMoveNumber = NumberOfMoves;
-            move.Piece.LastMoveDistance = Math.Max(Math.Abs(move.Y), Math.Abs(move.X));
-            NumberOfMoves++;
-            NumMovesSincePawnMoved++;
             //check for king threat
             darkKingThreat = Threat(KingDark.PieceColor, KingDark.X, KingDark.Y);
             lightKingThreat = Threat(KingLight.PieceColor, KingLight.X, KingLight.Y);
 
             kingThreat(KingDark, darkKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
             kingThreat(KingLight, lightKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
-            //TODO: look for stalemate or checkmate
 
-            if (move.Piece is Pawn)
+            if(move.Piece.PieceColor == -1 && darkKingThreat || move.Piece.PieceColor == 1 && lightKingThreat)
+            {//undo moves
+                foreach(var piece in piecesMoved)
+                {
+                    Grid[piece.X, piece.Y] = null;
+                    piece.UndoMove();
+                    Grid[piece.X, piece.Y] = piece;
+                }
+                foreach(var piece in piecesTaken)
+                {
+                    Grid[piece.X, piece.Y] = piece;
+                }
+                return null;
+            }
+            //TODO: look for stalemate or checkmate
+            if(promoted != null)
+            {
+                char choice = promotion(promoted);
+                switch(choice)
+                {
+                    case 'Q':
+                        Promote(promoted, new Queen()); break;
+                    case 'R':
+                        Promote(promoted, new Rook()); break;
+                    case 'B':
+                        Promote(promoted, new Bishop()); break;
+                    case 'N':
+                        Promote(promoted, new Knight()); break;
+                }
+                moveText = ("abcdefgh".Substring(promoted.X, 1)) + ("12345678".Substring(promoted.Y, 1)) + "=" + choice;
+            }
+            ColorToMove *= -1;
+            move.Piece.LastMoveNumber = NumberOfMoves;
+            move.Piece.LastMoveDistance = Math.Max(Math.Abs(move.Y), Math.Abs(move.X));
+            NumberOfMoves++;
+            NumMovesSincePawnMoved++;
+
+            if (move.Piece is Pawn || move.Take == true)
             {
                 this.NumMovesSincePawnMoved = 0;
             }
+            return string.IsNullOrEmpty(moveText) ? move.ToString() : moveText;
+        }
+
+        private void Promote(Pawn promoted, Piece piece)
+        {
+            Grid[promoted.X, promoted.Y] = piece;
+            piece.X = promoted.X;
+            piece.Y = promoted.Y;
+            piece.LastX = promoted.X;
+            piece.LastY = promoted.Y;
+            piece.PieceColor = promoted.PieceColor;
         }
 
         public string CreateFEN()

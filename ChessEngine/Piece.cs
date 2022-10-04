@@ -1,5 +1,7 @@
-﻿using System.Drawing;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Drawing;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 
@@ -10,8 +12,36 @@ namespace ChessEngine
         protected int xLen;
         protected int yLen;
         protected int zLen;
-        public int X { get; set; }
-        public int Y { get; set; }
+
+        int lastX = -1;
+        int lastY = -1;
+        int currentPieceX = -1;
+        int currentPieceY = -1;
+
+        public int X
+        {
+            get
+            {
+                return currentPieceX;
+            }
+            set
+            {
+                lastX = currentPieceX;
+                currentPieceX = value;
+            }
+        }
+        public int Y
+        {
+            get
+            {
+                return currentPieceY;
+            }
+            set
+            {
+                lastY = currentPieceY;
+                currentPieceY = value;
+            }
+        }
         public int PieceColor { get; set; }
         [JsonIgnore]
         public Board Board 
@@ -23,6 +53,8 @@ namespace ChessEngine
 
         [JsonIgnore]
         public virtual int[,,] Points { get; }
+        public int LastX { get => lastX; set => lastX = value; }
+        public int LastY { get => lastY; set => lastY = value; }
 
         public Piece()
         {
@@ -119,6 +151,12 @@ namespace ChessEngine
                     break;
                 }
             }
+        }
+
+        internal void UndoMove()
+        {
+            X = LastX;
+            Y = LastY;
         }
     }
 }
