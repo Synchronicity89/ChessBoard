@@ -97,7 +97,7 @@ namespace ChessEngine
         public string MovePiece(Move move, Action<King, KingStatus> kingThreat, Func<Pawn, char> promotion)
         {
             List<Piece> piecesMoved = new List<Piece>();
-            List<Piece> piecesTaken= new List<Piece>();
+            List<Piece> piecesTaken = new List<Piece>();
             string moveText = "";
             Pawn promoted = null;
             bool darkKingThreat;
@@ -105,12 +105,12 @@ namespace ChessEngine
             if (move.Piece is Pawn)
             {
                 if (Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] == null)
-                { 
+                {
                     //En Passant
-                    piecesTaken.Add(move.Piece); 
+                    piecesTaken.Add(move.Piece);
                     Grid[move.Piece.X + move.X, move.Piece.Y] = null;
                 }
-                else if((move.Y + move.Piece.Y) % 7 == 0)
+                else if ((move.Y + move.Piece.Y) % 7 == 0)
                 {
                     //Promotion
                     promoted = (Pawn)move.Piece;
@@ -126,15 +126,15 @@ namespace ChessEngine
 
                 darkKingThreat = Threat(KingDark.PieceColor, KingDark.X, KingDark.Y);
                 lightKingThreat = Threat(KingLight.PieceColor, KingLight.X, KingLight.Y);
-                if(move.Piece.PieceColor == -1 && darkKingThreat) 
+                if (move.Piece.PieceColor == -1 && darkKingThreat)
                     kingThreat(KingDark, KingStatus.UndoMove | KingStatus.Checked);
-                if (move.Piece.PieceColor == -1 && lightKingThreat) 
+                if (move.Piece.PieceColor == -1 && lightKingThreat)
                     kingThreat(KingLight, KingStatus.UndoMove | KingStatus.Checked);
 
                 if (Math.Abs(move.X) == 2)
-                { 
+                {
                     //Castling. Move rook too
-                    if(move.X == -2)
+                    if (move.X == -2)
                     {//Queen side castle
                         Grid[3, move.Piece.Y] = Grid[0, move.Piece.Y];
                         Grid[0, move.Piece.Y] = null;
@@ -155,31 +155,27 @@ namespace ChessEngine
             }
 
             //check for king threat
-            darkKingThreat = Threat(KingDark.PieceColor, KingDark.X, KingDark.Y);
-            lightKingThreat = Threat(KingLight.PieceColor, KingLight.X, KingLight.Y);
+            ThreatToKings(kingThreat, out darkKingThreat, out lightKingThreat);
 
-            kingThreat(KingDark, darkKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
-            kingThreat(KingLight, lightKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
-
-            if(move.Piece.PieceColor == -1 && darkKingThreat || move.Piece.PieceColor == 1 && lightKingThreat)
+            if (move.Piece.PieceColor == -1 && darkKingThreat || move.Piece.PieceColor == 1 && lightKingThreat)
             {//undo moves
-                foreach(var piece in piecesMoved)
+                foreach (var piece in piecesMoved)
                 {
                     Grid[piece.X, piece.Y] = null;
                     piece.UndoMove();
                     Grid[piece.X, piece.Y] = piece;
                 }
-                foreach(var piece in piecesTaken)
+                foreach (var piece in piecesTaken)
                 {
                     Grid[piece.X, piece.Y] = piece;
                 }
                 return null;
             }
             //TODO: look for stalemate or checkmate
-            if(promoted != null)
+            if (promoted != null)
             {
                 char choice = promotion(promoted);
-                switch(choice)
+                switch (choice)
                 {
                     case 'Q':
                         Promote(promoted, new Queen()); break;
@@ -191,6 +187,9 @@ namespace ChessEngine
                         Promote(promoted, new Knight()); break;
                 }
                 moveText = ("abcdefgh".Substring(promoted.X, 1)) + ("12345678".Substring(promoted.Y, 1)) + "=" + choice;
+                //TODO: if promoting produces check or checkmate
+                //check for king threat
+                ThreatToKings(kingThreat, out darkKingThreat, out lightKingThreat);
             }
             ColorToMove *= -1;
             move.Piece.LastMoveNumber = NumberOfMoves;
@@ -203,6 +202,15 @@ namespace ChessEngine
                 this.NumMovesSincePawnMoved = 0;
             }
             return string.IsNullOrEmpty(moveText) ? move.ToString() : moveText;
+        }
+
+        private void ThreatToKings(Action<King, KingStatus> kingThreat, out bool darkKingThreat, out bool lightKingThreat)
+        {
+            darkKingThreat = Threat(KingDark.PieceColor, KingDark.X, KingDark.Y);
+            lightKingThreat = Threat(KingLight.PieceColor, KingLight.X, KingLight.Y);
+
+            kingThreat(KingDark, darkKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
+            kingThreat(KingLight, lightKingThreat ? KingStatus.Checked : KingStatus.Unchecked);
         }
 
         private void Promote(Pawn promoted, Piece piece)
