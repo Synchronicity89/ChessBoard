@@ -1,5 +1,4 @@
-﻿using ilf.pgn.Data;
-using System.Threading.Tasks.Dataflow;
+﻿using System.Threading.Tasks.Dataflow;
 
 namespace ChessLibs
 {
@@ -7,7 +6,6 @@ namespace ChessLibs
     {
         int numMoves = 0;
         public string PgnText { get; private set; } = "";
-        Game game;
         public void RecordMove(string moveText)
         {
             if(string.IsNullOrEmpty(PgnText))

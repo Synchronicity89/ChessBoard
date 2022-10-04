@@ -1,7 +1,5 @@
 ﻿using ChessEngine;
 using ChessLibs;
-using ilf.pgn;
-using ilf.pgn.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -18,7 +16,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using pgnMove = ilf.pgn.Data.Move;
 using ceMove = ChessEngine.Move;
 
 namespace ChessGUI
@@ -143,7 +140,6 @@ namespace ChessGUI
         }
         private int moving = 0;
         private Pgn pgn = new Pgn();
-        private Database database;
         private void Rect_MouseDown(object sender, MouseButtonEventArgs e)
         {
             bool abortMove = false;
@@ -173,12 +169,6 @@ namespace ChessGUI
             --moving;
             Title = "FEN: " + board.CreateFEN() + "            pgn: " + (tag.Piece.PieceColor == -1 ? "... " : "") + moveText;
             pgn.RecordMove(moveText);
-            string debugArtifact = pgn.PgnText.Substring(pgn.PgnText.Length - 20);
-            PgnReader pgnReader = new PgnReader();
-            var db = pgnReader.ReadFromString(pgn.PgnText.Replace("'", "\""));
-            database = db;
-            MemoryStream memStream = new MemoryStream();
-            var debugArtifact2 = db.Games[0].ToString();
         }
 
     private void AbortMove()
