@@ -1,0 +1,3 @@
+[submodule "pgn.net"]
+	path = pgn.net
+	url = https://github.com/teodoran/pgn.net.git
