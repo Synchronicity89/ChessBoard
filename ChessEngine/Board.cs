@@ -107,7 +107,7 @@ namespace ChessEngine
                 if (Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] == null)
                 {
                     //En Passant
-                    piecesTaken.Add(move.Piece);
+                    piecesTaken.Add(Grid[move.Piece.X + move.X, move.Piece.Y]);
                     Grid[move.Piece.X + move.X, move.Piece.Y] = null;
                 }
                 else if ((move.Y + move.Piece.Y) % 7 == 0)
@@ -115,6 +115,10 @@ namespace ChessEngine
                     //Promotion
                     promoted = (Pawn)move.Piece;
                 }
+            }
+            if (move.Take && Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] != null)
+            {
+                piecesTaken.Add(Grid[move.X + move.Piece.X, move.Y + move.Piece.Y]);
             }
             Grid[move.X + move.Piece.X, move.Y + move.Piece.Y] = move.Piece;
             Grid[move.Piece.X, move.Piece.Y] = null;

@@ -147,10 +147,13 @@ namespace ChessGUI
             ceMove tag = (ceMove)((Rectangle)sender).Tag;
             RemoveUIElements<Rectangle>();
             string moveText = board.MovePiece(tag, (king, kingStatus) => {
-                if ((kingStatus & KingStatus.Checked) == KingStatus.Checked) CreateRectangle(Brushes.Red, king.X, king.Y);
                 if (king.PieceColor == tag.Piece.PieceColor && (kingStatus & KingStatus.UndoMove) == KingStatus.UndoMove)
                 {
                     abortMove = true;
+                }
+                else
+                {
+                    if ((kingStatus & KingStatus.Checked) == KingStatus.Checked) CreateRectangle(Brushes.Red, king.X, king.Y);
                 }
             }, pawn =>
             {
@@ -163,6 +166,8 @@ namespace ChessGUI
             {
                 this.AbortMove();
                 moving = 0;
+                var redRects = grdBoard.Children.Cast<UIElement>().Where(uie => uie is Rectangle && (uie as Rectangle).Fill == Brushes.Red);
+                if (redRects.Count() > 1) grdBoard.Children.Remove(redRects.Last());
                 return;
             }
             DrawPieces();
